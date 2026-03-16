@@ -1,14 +1,38 @@
 {
     "elements": [
-        { "type": "SelectVariable", "name": "SensorID", "caption": "Feuchtigkeitssensor" },
-        { "type": "NumberSpinner", "name": "Threshold", "caption": "Schwellwert (%)", "digits": 1 },
-        { "type": "SelectVariable", "name": "TargetID", "caption": "Lüfter (Aktor)" }
+        { 
+        "type": "CheckBox", 
+        "name": "Active", 
+        "caption": "Modul aktivieren" 
+        },
+        {
+            "type": "Label",
+            "caption": "Wähle hier den Feuchtigkeitssensor und den Zigbee-Aktor aus."
+        },
+        {
+            "type": "SelectVariable",
+            "name": "SensorID",
+            "caption": "Feuchtigkeits-Sensor (Humidity %)"
+        },
+        {
+            "type": "SelectInstance",
+            "name": "TargetID",
+            "caption": "Lüfter Aktor (Z2M Instanz)"
+        }
     ],
     "actions": [
-        { "type": "Button", "label": "Manuell prüfen", "onClick": "MHVC_CheckHumidity($InstanceID, 0);" }
+        {
+            "type": "Button",
+            "caption": "Lüfter Test AN",
+            "onClick": "Z2M_WriteValueBoolean($TargetID, 'state', true);"
+        },
+        {
+            "type": "Button",
+            "caption": "Lüfter Test AUS",
+            "onClick": "MYHUM_StopFan($id);"
+        }
     ]
 }
-
 
 
 
