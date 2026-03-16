@@ -1,0 +1,14 @@
+{
+    "elements": [
+        { "type": "SelectVariable", "name": "SensorID", "caption": "Feuchtigkeitssensor" },
+        { "type": "NumberSpinner", "name": "Threshold", "caption": "Schwellwert (%)", "digits": 1 },
+        { "type": "SelectVariable", "name": "TargetID", "caption": "Lüfter (Aktor)" }
+    ],
+    "actions": [
+        { "type": "Button", "label": "Manuell prüfen", "onClick": "MHVC_CheckHumidity($InstanceID, 0);" }
+    ]
+}
+
+
+
+

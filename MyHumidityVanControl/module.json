@@ -1,0 +1,11 @@
+{
+    "id": "{{5B82D890-01A6-2765-BA85-B9B9AA8D3142}}",
+    "name": "MyHumidityVanControl",
+    "type": 3,
+    "vendor": "PiTo",
+    "aliases": ["Feuchtigkeitssteuerung"],
+    "parentRequirements": [],
+    "childRequirements": [],
+    "implemented": [],
+    "prefix": "MHVC"
+}
