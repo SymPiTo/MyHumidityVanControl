@@ -10,6 +10,18 @@
             "caption": "Wähle hier den Feuchtigkeitssensor und den Zigbee-Aktor aus."
         },
         {
+            "type": "NumberSpinner",
+            "name": "LimitOn",
+            "caption": "Einschalten bei (%)",
+            "suffix": "%"
+        },
+        {
+            "type": "NumberSpinner",
+            "name": "LimitOff",
+            "caption": "Ausschalten bei (%)",
+            "suffix": "%"
+        },
+        {
             "type": "SelectVariable",
             "name": "SensorID",
             "caption": "Feuchtigkeits-Sensor (Humidity %)"

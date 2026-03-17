@@ -12,6 +12,8 @@ class MyHumidityVanControl extends IPSModule {
         $this->RegisterPropertyInteger("SensorID", 0);  // Feuchtigkeitssensor Variable
         $this->RegisterPropertyInteger("TargetID", 0);  //Lüfter Instanz    
         $this->RegisterPropertyInteger("SwitchID", 0); // Manueller Schalter (Instanz)
+        $this->RegisterPropertyInteger("LimitOn", 50);
+        $this->RegisterPropertyInteger("LimitOff", 45);
         $this->RegisterPropertyBoolean("Active", true);
         
         // Timer für die maximale Laufzeit (5 Minuten = 300.000 Millisekunden)
@@ -75,23 +77,20 @@ class MyHumidityVanControl extends IPSModule {
 
     private function CheckHumidity(float $currentValue) {
         $targetId = $this->ReadPropertyInteger("TargetID");
+        $limitOn = $this->ReadPropertyInteger("LimitOn");
+        $limitOff = $this->ReadPropertyInteger("LimitOff");
         
-        // Prüfen, ob der Timer gerade läuft
         $timerActive = $this->GetTimerInterval("MaxRunTimer") > 0;
 
         if ($targetId > 0 && IPS_InstanceExists($targetId)) {
-            
-            // LOGIK A: Einschalten
-            // Wenn Feuchte > 50% UND der Lüfter-Timer NICHT läuft
-            if ($currentValue > 50 && !$timerActive) {
-                $this->SendDebug("Control", "Feuchtigkeit ($currentValue%) > 50% -> Lüfter AN", 0);
+            // Einschalten: Aktueller Wert > LimitOn
+            if ($currentValue > $limitOn && !$timerActive) {
+                $this->SendDebug("Control", "Sensor: $currentValue% > $limitOn% -> AN", 0);
                 $this->StartFan();
             } 
-            
-            // LOGIK B: Ausschalten über Feuchtigkeit
-            // Wenn Feuchte < 48% UND der Lüfter-Timer läuft noch
-            elseif ($currentValue < 48 && $timerActive) {
-                $this->SendDebug("Control", "Feuchtigkeit ($currentValue%) < 48% -> Lüfter AUS", 0);
+            // Ausschalten: Aktueller Wert < LimitOff
+            elseif ($currentValue < $limitOff && $timerActive) {
+                $this->SendDebug("Control", "Sensor: $currentValue% < $limitOff% -> AUS", 0);
                 $this->StopFan();
             }
         }
