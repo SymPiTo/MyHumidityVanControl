@@ -22,8 +22,12 @@ class MyHumidityVanControl extends IPSModule {
         // Diese Zeile nicht löschen
         parent::ApplyChanges();
 
-        // Alle alten Registrierungen löschen
-        $this->UnregisterAllMessages();
+        // Alle Nachrichten für dieses Modul abmelden
+        foreach ($this->GetMessageList() as $senderID => $messages) {
+            foreach ($messages as $message) {
+                $this->UnregisterMessage($senderID, $message);
+            }
+        }
 
         // Neue Registrierung für die Sensor-ID (10603 = VM_UPDATE)
         $sensorId = $this->ReadPropertyInteger("SensorID");
