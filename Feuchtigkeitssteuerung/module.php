@@ -10,69 +10,101 @@ class MyHumidityVanControl extends IPSModule {
 
         // Eigenschaften registrieren
         $this->RegisterPropertyInteger("SensorID", 0);  // Feuchtigkeitssensor Variable
-        $this->RegisterPropertyInteger("TargetID", 0);  //Lüfter Instanz    
+        $this->RegisterPropertyInteger("TargetID", 0);  // Lüfter Instanz    
         $this->RegisterPropertyInteger("SwitchID", 0); // Manueller Schalter (Instanz)
         $this->RegisterPropertyInteger("LimitOn", 50);
         $this->RegisterPropertyInteger("LimitOff", 45);
         $this->RegisterPropertyInteger("RunTime", 5);
         $this->RegisterPropertyBoolean("Active", true);
         
-        // Timer für die maximale Laufzeit (5 Minuten = 300.000 Millisekunden)
-        // Er ruft die öffentliche Funktion StopFan auf
+        // Timer für die maximale Laufzeit
         $this->RegisterTimer("MaxRunTimer", 0, 'MHVC_StopFan($_IPS[\'TARGET\']);');
+
+        // Visualisierungstyp auf 1 setzen für HTML-SDK
+        $this->SetVisualizationType(1);
     }
 
     public function ApplyChanges() {
-        // Diese Zeile nicht löschen
         parent::ApplyChanges();
 
-        // Alle Nachrichten für dieses Modul abmelden
+        // Alle Nachrichten abmelden
         foreach ($this->GetMessageList() as $senderID => $messages) {
             foreach ($messages as $message) {
                 $this->UnregisterMessage($senderID, $message);
             }
         }
 
-        // Neue Registrierung für die Sensor-ID (10603 = VM_UPDATE)
+        // Registrierung Feuchtigkeitssensor
         $sensorId = $this->ReadPropertyInteger("SensorID");
         if ($sensorId > 0 && IPS_VariableExists($sensorId)) {
-            $this->RegisterMessage($sensorId, 10603); //VM_UPDATE
+            $this->RegisterMessage($sensorId, 10603); // VM_UPDATE
         }
 
-        // 2. Registrierung für manuellen Schalter (Variable innerhalb der Instanz)
+        // Registrierung manueller Schalter
         $switchInstanceId = $this->ReadPropertyInteger("SwitchID");
         if ($switchInstanceId > 0 && IPS_InstanceExists($switchInstanceId)) {
             $switchVarId = @IPS_GetObjectIDByIdent("state", $switchInstanceId);
             if ($switchVarId !== false) {
-                $this->RegisterMessage($switchVarId, 10603); // VM_UPDATE
+                $this->RegisterMessage($switchVarId, 10603);
             }
         }
 
-        // Timer beim Übernehmen der Änderungen sicherheitshalber stoppen
+        // Registrierung Status des Lüfters (um Kachel bei externer Schaltung zu aktualisieren)
+        $targetId = $this->ReadPropertyInteger("TargetID");
+        if ($targetId > 0 && IPS_InstanceExists($targetId)) {
+            $stateVarId = @IPS_GetObjectIDByIdent("state", $targetId);
+            if ($stateVarId !== false) {
+                $this->RegisterMessage($stateVarId, 10603);
+            }
+        }
+
         $this->SetTimerInterval("MaxRunTimer", 0);
 
-        // Wenn das Modul deaktiviert wird, Lüfter sofort ausmachen
         if (!$this->ReadPropertyBoolean("Active")) {
             $this->StopFan();
         }
     }
 
     public function MessageSink($TimeStamp, $SenderID, $Message, $Data) {
- // $Message 10603 = VM_UPDATE
         if ($Message == 10603) {
             $sensorId = $this->ReadPropertyInteger("SensorID");
             $switchInstanceId = $this->ReadPropertyInteger("SwitchID");
             $switchVarId = @IPS_GetObjectIDByIdent("state", $switchInstanceId);
+            
+            $targetId = $this->ReadPropertyInteger("TargetID");
+            $targetStateId = @IPS_GetObjectIDByIdent("state", $targetId);
 
-            // Fall A: Feuchtigkeitssensor (nur wenn Modul aktiv)
+            // Fall A: Feuchtigkeitssensor
             if ($SenderID == $sensorId && $this->ReadPropertyBoolean("Active")) {
                 $this->CheckHumidity($Data[0]);
             }
 
-            // Fall B: Manueller Schalter (Toggle Logik)
+            // Fall B: Manueller Schalter
             if ($SenderID == $switchVarId) {
                 $this->ToggleFan();
             }
+
+            // IMMER: Kachel aktualisieren, wenn sich relevante Werte ändern
+            if ($SenderID == $sensorId || $SenderID == $switchVarId || $SenderID == $targetStateId) {
+                $this->UpdateTile();
+            }
+        }
+    }
+
+    public function RequestAction($Ident, $Value) {
+        switch ($Ident) {
+            case "SetAuto":
+                IPS_SetProperty($this->InstanceID, "Active", $Value);
+                IPS_ApplyChanges($this->InstanceID);
+                break;
+
+            case "ToggleFan":
+                if ($Value) {
+                    $this->StartFan();
+                } else {
+                    $this->StopFan();
+                }
+                break;
         }
     }
 
@@ -80,32 +112,21 @@ class MyHumidityVanControl extends IPSModule {
         $targetId = $this->ReadPropertyInteger("TargetID");
         $limitOn = $this->ReadPropertyInteger("LimitOn");
         $limitOff = $this->ReadPropertyInteger("LimitOff");
-        
         $timerActive = $this->GetTimerInterval("MaxRunTimer") > 0;
 
         if ($targetId > 0 && IPS_InstanceExists($targetId)) {
-            // Einschalten: Aktueller Wert > LimitOn
             if ($currentValue > $limitOn && !$timerActive) {
-                $this->SendDebug("Control", "Sensor: $currentValue% > $limitOn% -> AN", 0);
                 $this->StartFan();
-            } 
-            // Ausschalten: Aktueller Wert < LimitOff
-            elseif ($currentValue < $limitOff && $timerActive) {
-                $this->SendDebug("Control", "Sensor: $currentValue% < $limitOff% -> AUS", 0);
+            } elseif ($currentValue < $limitOff && $timerActive) {
                 $this->StopFan();
             }
         }
     }
 
-    /**
-     * Diese Funktion ist öffentlich, damit der Timer sie aufrufen kann.
-     * Sie kann auch manuell über die Konsole aufgerufen werden.
-     */
     public function ToggleFan() {
         $targetId = $this->ReadPropertyInteger("TargetID");
         if ($targetId <= 0 || !IPS_InstanceExists($targetId)) return;
 
-        // Status des Lüfters ermitteln
         $stateVarId = @IPS_GetObjectIDByIdent("state", $targetId);
         if ($stateVarId === false) return;
 
@@ -113,45 +134,61 @@ class MyHumidityVanControl extends IPSModule {
         $isModuleActive = $this->ReadPropertyBoolean("Active");
 
         if (!$isCurrentlyOn) {
-            $this->SendDebug("Manual", "Toggle -> Einschalten", 0);
             Z2M_WriteValueBoolean($targetId, 'state', true);
-            
-        // Timer nur setzen, wenn Modul aktiv ist
-        if ($isModuleActive) {
-            $runTime = $this->ReadPropertyInteger("RunTime");
-            $this->SetTimerInterval("MaxRunTimer", $runTime * 60 * 1000);
-        } else {
+            if ($isModuleActive) {
+                $runTime = $this->ReadPropertyInteger("RunTime");
+                $this->SetTimerInterval("MaxRunTimer", $runTime * 60 * 1000);
+            } else {
                 $this->SetTimerInterval("MaxRunTimer", 0);
             }
         } else {
-            $this->SendDebug("Manual", "Toggle -> Ausschalten", 0);
             $this->StopFan();
-        }
+        } // <--- Hier fehlte die schließende Klammer!
     }
 
     public function StopFan() {
         $targetId = $this->ReadPropertyInteger("TargetID");
-        
         if ($targetId > 0 && IPS_InstanceExists($targetId)) {
-            $this->SendDebug("Control", "Ausschaltbefehl wird gesendet.", 0);
-            
-            // Z2M Befehl zum Ausschalten
             Z2M_WriteValueBoolean($targetId, 'state', false);
         }
-        
-        // Timer stoppen, egal ob er durch Zeitablauf oder Feuchte ausgelöst wurde
         $this->SetTimerInterval("MaxRunTimer", 0);
     }
     
     public function StartFan() {
         $targetId = $this->ReadPropertyInteger("TargetID");
-        $runTime = $this->ReadPropertyInteger("RunTime"); // Wert in Minuten
-
+        $runTime = $this->ReadPropertyInteger("RunTime");
         if ($targetId > 0 && IPS_InstanceExists($targetId)) {
             Z2M_WriteValueBoolean($targetId, 'state', true);
-            
-            // Umrechnung: Minuten * 60 (Sekunden) * 1000 (Millisekunden)
             $this->SetTimerInterval("MaxRunTimer", $runTime * 60 * 1000);
         }
+    }
+
+    public function GetVisualizationTile() {
+        // Nutzt die zentrale Funktion für die initiale Darstellung
+        return $this->GetFullUpdateMessage();
+    }
+
+    private function UpdateTile() {
+        // Sendet ein Live-Update an die Kachel
+        $this->UpdateVisualizationTile($this->GetFullUpdateMessage());
+    }
+
+    private function GetFullUpdateMessage() {
+        $sensorId = $this->ReadPropertyInteger("SensorID");
+        $targetId = $this->ReadPropertyInteger("TargetID");
+        
+        // Status des Lüfters aus der Ziel-Instanz holen
+        $stateVarId = @IPS_GetObjectIDByIdent("state", $targetId);
+        $fanState = ($stateVarId !== false) ? GetValueBoolean($stateVarId) : false;
+
+        // Datenpaket für die module.html
+        $data = [
+            "humidity"   => ($sensorId > 0 && IPS_VariableExists($sensorId)) ? GetValue($sensorId) : 0,
+            "fanState"   => $fanState,
+            "autoActive" => $this->ReadPropertyBoolean("Active"),
+            "sensorId"   => $sensorId
+        ];
+
+        return json_encode($data);
     }
 }

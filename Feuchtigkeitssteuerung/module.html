@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { color: white; font-family: sans-serif; padding: 10px; }
+        .status { font-size: 20px; font-weight: bold; color: #00ff00; }
+    </style>
+</head>
+<body>
+    <div>Feuchtigkeit: <span id="hum">--</span>%</div>
+    <div id="debug" style="font-size: 10px; opacity: 0.5;">Warte auf Daten...</div>
+
+    <script>
+        function handleState(state) {
+            // Debug: Zeige an, dass Daten angekommen sind
+            document.getElementById('debug').innerText = "Letztes Update: " + new Date().toLocaleTimeString();
+            
+            // Daten verarbeiten
+            const data = typeof state === 'string' ? JSON.parse(state) : state;
+            
+            if (data.humidity !== undefined) {
+                document.getElementById('hum').innerText = data.humidity;
+            }
+        }
+    </script>
+</body>
+</html>
