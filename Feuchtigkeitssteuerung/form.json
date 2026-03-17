@@ -22,6 +22,12 @@
             "suffix": "%"
         },
         {
+            "type": "NumberSpinner",
+            "name": "RunTime",
+            "caption": "Maximale Laufzeit (Minuten)",
+            "suffix": "min"
+        },
+        {
             "type": "SelectVariable",
             "name": "SensorID",
             "caption": "Feuchtigkeits-Sensor (Humidity %)"

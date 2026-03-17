@@ -14,6 +14,7 @@ class MyHumidityVanControl extends IPSModule {
         $this->RegisterPropertyInteger("SwitchID", 0); // Manueller Schalter (Instanz)
         $this->RegisterPropertyInteger("LimitOn", 50);
         $this->RegisterPropertyInteger("LimitOff", 45);
+        $this->RegisterPropertyInteger("RunTime", 5);
         $this->RegisterPropertyBoolean("Active", true);
         
         // Timer für die maximale Laufzeit (5 Minuten = 300.000 Millisekunden)
@@ -115,10 +116,11 @@ class MyHumidityVanControl extends IPSModule {
             $this->SendDebug("Manual", "Toggle -> Einschalten", 0);
             Z2M_WriteValueBoolean($targetId, 'state', true);
             
-            // Timer nur setzen, wenn Modul aktiv ist
-            if ($isModuleActive) {
-                $this->SetTimerInterval("MaxRunTimer", 5 * 60 * 1000);
-            } else {
+        // Timer nur setzen, wenn Modul aktiv ist
+        if ($isModuleActive) {
+            $runTime = $this->ReadPropertyInteger("RunTime");
+            $this->SetTimerInterval("MaxRunTimer", $runTime * 60 * 1000);
+        } else {
                 $this->SetTimerInterval("MaxRunTimer", 0);
             }
         } else {
@@ -143,15 +145,13 @@ class MyHumidityVanControl extends IPSModule {
     
     public function StartFan() {
         $targetId = $this->ReadPropertyInteger("TargetID");
-        
+        $runTime = $this->ReadPropertyInteger("RunTime"); // Wert in Minuten
+
         if ($targetId > 0 && IPS_InstanceExists($targetId)) {
-            $this->SendDebug("Control", "Einschaltbefehl wird gesendet.", 0);
-            
-            // Z2M Befehl zum Einschalten
             Z2M_WriteValueBoolean($targetId, 'state', true);
+            
+            // Umrechnung: Minuten * 60 (Sekunden) * 1000 (Millisekunden)
+            $this->SetTimerInterval("MaxRunTimer", $runTime * 60 * 1000);
         }
-        
-        // Timer auf 5 Minuten starten
-        $this->SetTimerInterval("MaxRunTimer", 5 * 60 * 1000);
-    }    
+    }
 }
