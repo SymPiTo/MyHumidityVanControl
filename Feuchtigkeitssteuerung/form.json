@@ -18,6 +18,11 @@
             "type": "SelectInstance",
             "name": "TargetID",
             "caption": "Lüfter Aktor (Z2M Instanz)"
+        },
+        {
+            "type": "SelectInstance",
+            "name": "SwitchID",
+            "caption": "ZigBee Schalter (Z2M Instanz)"
         }
     ],
     "actions": [
