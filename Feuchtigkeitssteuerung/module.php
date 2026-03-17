@@ -64,12 +64,7 @@ class MyHumidityVanControl extends IPSModule {
             // Wenn Feuchte > 50% UND der Lüfter-Timer NICHT läuft
             if ($currentValue > 50 && !$timerActive) {
                 $this->SendDebug("Control", "Feuchtigkeit ($currentValue%) > 50% -> Lüfter AN", 0);
-                
-                // Z2M Befehl zum Einschalten
-                Z2M_WriteValueBoolean($targetId, 'state', true);
-                
-                // Timer auf 5 Minuten starten
-                $this->SetTimerInterval("MaxRunTimer", 5 * 60 * 1000);
+                $this->StarFan();
             } 
             
             // LOGIK B: Ausschalten über Feuchtigkeit
@@ -98,4 +93,18 @@ class MyHumidityVanControl extends IPSModule {
         // Timer stoppen, egal ob er durch Zeitablauf oder Feuchte ausgelöst wurde
         $this->SetTimerInterval("MaxRunTimer", 0);
     }
+    
+    public function StarFan() {
+        $targetId = $this->ReadPropertyInteger("TargetID");
+        
+        if ($targetId > 0 && IPS_InstanceExists($targetId)) {
+            $this->SendDebug("Control", "Einschaltbefehl wird gesendet.", 0);
+            
+            // Z2M Befehl zum Einschalten
+            Z2M_WriteValueBoolean($targetId, 'state', true);
+        }
+        
+        // Timer auf 5 Minuten starten
+        $this->SetTimerInterval("MaxRunTimer", 5 * 60 * 1000);
+    }    
 }

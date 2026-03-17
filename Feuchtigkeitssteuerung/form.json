@@ -24,12 +24,12 @@
         {
             "type": "Button",
             "caption": "Lüfter Test AN",
-            "onClick": "Z2M_WriteValueBoolean($TargetID, 'state', true);"
+            "onClick": "MHVC_StartFan($id);"
         },
         {
             "type": "Button",
             "caption": "Lüfter Test AUS",
-            "onClick": "MYHUM_StopFan($id);"
+            "onClick": "MHVC_StopFan($id);"
         }
     ]
 }
